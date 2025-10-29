@@ -11,7 +11,6 @@ from PIL import Image
 # ------------------------------------------------------------------
 # 1. THE SYSTEM PROMPT FOR GEMINI
 # ------------------------------------------------------------------
-# (This section is unchanged)
 SYSTEM_PROMPT = """
 You are an expert academic author and textbook editor. Your sole task is to 
 convert the provided raw lecture slide content into a single, comprehensive, 
@@ -56,7 +55,6 @@ The final output must be a single, cohesive document formatted in **Markdown**.
 # ------------------------------------------------------------------
 # 2. HELPER FUNCTIONS (FILE PARSING)
 # ------------------------------------------------------------------
-# (This section is unchanged)
 
 def extract_content_from_pptx(file_obj):
     """
@@ -129,7 +127,6 @@ def extract_content_from_pdf(file_obj):
 # 3. HELPER FUNCTIONS (API & PDF)
 # ------------------------------------------------------------------
 
-# --- NEW FUNCTION TO GET MODELS ---
 @st.cache_data
 def get_available_models():
     """
@@ -147,19 +144,16 @@ def get_available_models():
         st.error(f"Error fetching model list: {e}")
         return []
 
-# --- MODIFIED API CALL FUNCTION ---
 def call_gemini_api(content_to_process, model_name):
     """
     Sends the extracted content and system prompt to the Gemini API
     using the user-selected model.
     """
     try:
-        # Configuration is already done by get_available_models,
-        # but we do it again here just in case.
         genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
         
         model = genai.GenerativeModel(
-            model_name=model_name,  # Use the selected model name
+            model_name=model_name,
             system_instruction=SYSTEM_PROMPT
         )
         response = model.generate_content(content_to_process)
@@ -168,11 +162,9 @@ def call_gemini_api(content_to_process, model_name):
         st.error(f"Error calling Gemini API: {e}")
         st.stop()
 
-# --- PDF GENERATION (Unchanged) ---
 class PDF(FPDF):
     """Custom FPDF class to handle multi-cell with bold/italic"""
     def write_html(self, text):
-        # A very simple HTML parser for bold/italic
         parts = re.split(r'(\*\*.+?\*\*|_.+?_)', text)
         for part in parts:
             if part.startswith('**') and part.endswith('**'):
@@ -186,6 +178,8 @@ class PDF(FPDF):
                 self.write(self.h, part)
         self.ln(self.h)
 
+
+# --- THIS IS THE UPDATED FUNCTION ---
 def create_pdf_from_markdown(markdown_text, image_dict):
     """
     Generates a PDF from the LLM's Markdown output, embedding images.
@@ -207,19 +201,19 @@ def create_pdf_from_markdown(markdown_text, image_dict):
         # H1 Title: #
         if re.match(r'^#\s', line):
             pdf.set_font("Arial", 'B', 24)
-            pdf.multi_cell(0, 12, line[2:].strip())
+            pdf.multi_cell(0, 12, line[2:].strip(), ln=1)  # <-- FIX
             pdf.ln(5)
         
         # H2 Title: ##
         elif re.match(r'^##\s', line):
             pdf.set_font("Arial", 'B', 18)
-            pdf.multi_cell(0, 10, line[3:].strip())
+            pdf.multi_cell(0, 10, line[3:].strip(), ln=1)  # <-- FIX
             pdf.ln(4)
 
         # H3 Title: ###
         elif re.match(r'^###\s', line):
             pdf.set_font("Arial", 'B', 14)
-            pdf.multi_cell(0, 8, line[4:].strip())
+            pdf.multi_cell(0, 8, line[4:].strip(), ln=1)  # <-- FIX
             pdf.ln(3)
 
         # Image Placeholder: [IMAGE: ...]
@@ -254,39 +248,41 @@ def create_pdf_from_markdown(markdown_text, image_dict):
                 except Exception as e:
                     pdf.set_font("Arial", 'I', 10)
                     pdf.set_text_color(255, 0, 0) # Red
-                    pdf.multi_cell(0, 5, f"[Error embedding image: {img_filename}. {e}]")
+                    pdf.multi_cell(0, 5, f"[Error embedding image: {img_filename}. {e}]", ln=1)  # <-- FIX
                     pdf.set_text_color(0, 0, 0) # Back to black
             else:
                 pdf.set_font("Arial", 'I', 10)
                 pdf.set_text_color(255, 0, 0)
-                pdf.multi_cell(0, 5, f"[Image not found: {img_filename}]")
+                pdf.multi_cell(0, 5, f"[Image not found: {img_filename}]", ln=1)  # <-- FIX
                 pdf.set_text_color(0, 0, 0)
 
         # Figure Caption: *Figure...
         elif re.match(r'^\*Figure.*', line):
             pdf.set_font("Arial", 'I', 10)
-            pdf.multi_cell(0, 5, line.strip())
+            pdf.multi_cell(0, 5, line.strip(), ln=1)  # <-- FIX
             pdf.ln(5)
 
         # Bullet points
         elif re.match(r'^\s*[\*\-]\s', line):
             pdf.set_font("Arial", '', 12)
-            pdf.multi_cell(0, 5, f"  •  {line.lstrip(' *-')}")
+            pdf.multi_cell(0, 5, f"  •  {line.lstrip(' *-')}", ln=1)  # <-- FIX
 
         # Numbered lists
         elif re.match(r'^\s*\d+\.\s', line):
             pdf.set_font("Arial", '', 12)
-            pdf.multi_cell(0, 5, f"  {line.lstrip()}")
+            pdf.multi_cell(0, 5, f"  {line.lstrip()}", ln=1)  # <-- FIX
 
         # Paragraph text (with bold/italic)
         else:
             pdf.set_font("Arial", '', 12)
-            pdf.write_html(line.strip())
+            pdf.write_html(line.strip()) # This function correctly handles its own line breaks
             
     return pdf.output(dest='S').encode('latin-1')
+# --- END OF UPDATED FUNCTION ---
+
 
 # ------------------------------------------------------------------
-# 4. STREAMLIT APPLICATION UI (MODIFIED)
+# 4. STREAMLIT APPLICATION UI
 # ------------------------------------------------------------------
 
 st.set_page_config(page_title="Lecture to Textbook", layout="wide")
@@ -300,7 +296,7 @@ if "GOOGLE_API_KEY" not in st.secrets:
     st.code("GOOGLE_API_KEY = \"YOUR_API_KEY_HERE\"")
     st.stop()
 
-# --- NEW: FETCH MODELS AND CREATE DROPDOWN ---
+# --- FETCH MODELS AND CREATE DROPDOWN ---
 available_models = get_available_models()
 
 if not available_models:
@@ -317,7 +313,6 @@ selected_model_name = st.selectbox(
     format_func=format_model_name,
     help="Models like '1.5-flash' are faster, '1.5-pro' is more powerful."
 )
-# --- END OF NEW SECTION ---
 
 
 # File Uploader
@@ -346,10 +341,9 @@ if uploaded_file is not None:
                 st.error(f"Error during file extraction: {e}")
                 st.stop()
 
-        # 2. Call Gemini API (--- MODIFIED ---)
+        # 2. Call Gemini API
         with st.spinner(f"🤖 Calling {format_model_name(selected_model_name)} to write your textbook..."):
             try:
-                # Pass the selected model name to the API function
                 markdown_output = call_gemini_api(extracted_text, selected_model_name)
                 st.success("Gemini has finished writing!")
                 
