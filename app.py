@@ -140,10 +140,12 @@ def call_gemini_api(content_to_process):
     """
     try:
         genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
+        # --- THIS IS THE FIX ---
         model = genai.GenerativeModel(
-            model_name="gemini-1.5-pro-latest",
+            model_name="gemini-1.5-pro",  # Changed from "gemini-1.5-pro-latest"
             system_instruction=SYSTEM_PROMPT
         )
+        # --- END OF FIX ---
         response = model.generate_content(content_to_process)
         return response.text
     except Exception as e:
@@ -224,6 +226,11 @@ def create_pdf_from_markdown(markdown_text, image_dict):
                         
                         # Calculate image size to fit page
                         page_width = pdf.w - pdf.l_margin - pdf.r_margin
+                        
+                        # Handle potential division by zero for tall, thin images
+                        if img.width == 0:
+                            continue
+                            
                         ratio = img.height / img.width
                         img_width = page_width
                         img_height = page_width * ratio
