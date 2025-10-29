@@ -11,7 +11,7 @@ from PIL import Image
 # ------------------------------------------------------------------
 # 1. THE SYSTEM PROMPT FOR GEMINI
 # ------------------------------------------------------------------
-# This is the "brain" of your operation.
+# (This section is unchanged)
 SYSTEM_PROMPT = """
 You are an expert academic author and textbook editor. Your sole task is to 
 convert the provided raw lecture slide content into a single, comprehensive, 
@@ -56,13 +56,11 @@ The final output must be a single, cohesive document formatted in **Markdown**.
 # ------------------------------------------------------------------
 # 2. HELPER FUNCTIONS (FILE PARSING)
 # ------------------------------------------------------------------
+# (This section is unchanged)
 
 def extract_content_from_pptx(file_obj):
     """
     Extracts text and images from a .pptx file.
-    Returns:
-        - A string of all text, with image placeholders.
-        - A dictionary of {image_filename: image_bytes}.
     """
     st.write("Extracting from PowerPoint...")
     prs = Presentation(file_obj)
@@ -96,9 +94,6 @@ def extract_content_from_pptx(file_obj):
 def extract_content_from_pdf(file_obj):
     """
     Extracts text and images from a .pdf file.
-    Returns:
-        - A string of all text, with image placeholders.
-        - A dictionary of {image_filename: image_bytes}.
     """
     st.write("Extracting from PDF...")
     doc = fitz.open(stream=file_obj.read(), filetype="pdf")
@@ -134,24 +129,46 @@ def extract_content_from_pdf(file_obj):
 # 3. HELPER FUNCTIONS (API & PDF)
 # ------------------------------------------------------------------
 
-def call_gemini_api(content_to_process):
+# --- NEW FUNCTION TO GET MODELS ---
+@st.cache_data
+def get_available_models():
     """
-    Sends the extracted content and system prompt to the Gemini API.
+    Fetches and filters the list of available Gemini models.
+    Returns a list of model names that support 'generateContent'.
     """
     try:
         genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
-        # --- THIS IS THE FIX ---
+        models_list = []
+        for m in genai.list_models():
+            if 'generateContent' in m.supported_generation_methods:
+                models_list.append(m.name)
+        return models_list
+    except Exception as e:
+        st.error(f"Error fetching model list: {e}")
+        return []
+
+# --- MODIFIED API CALL FUNCTION ---
+def call_gemini_api(content_to_process, model_name):
+    """
+    Sends the extracted content and system prompt to the Gemini API
+    using the user-selected model.
+    """
+    try:
+        # Configuration is already done by get_available_models,
+        # but we do it again here just in case.
+        genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
+        
         model = genai.GenerativeModel(
-            model_name="gemini-1.5-pro",  # Changed from "gemini-1.5-pro-latest"
+            model_name=model_name,  # Use the selected model name
             system_instruction=SYSTEM_PROMPT
         )
-        # --- END OF FIX ---
         response = model.generate_content(content_to_process)
         return response.text
     except Exception as e:
         st.error(f"Error calling Gemini API: {e}")
         st.stop()
 
+# --- PDF GENERATION (Unchanged) ---
 class PDF(FPDF):
     """Custom FPDF class to handle multi-cell with bold/italic"""
     def write_html(self, text):
@@ -168,7 +185,6 @@ class PDF(FPDF):
                 self.set_font(self.font_family, '', self.font_size)
                 self.write(self.h, part)
         self.ln(self.h)
-
 
 def create_pdf_from_markdown(markdown_text, image_dict):
     """
@@ -214,20 +230,16 @@ def create_pdf_from_markdown(markdown_text, image_dict):
                     img_bytes = image_dict[img_filename]
                     img_file_obj = io.BytesIO(img_bytes)
                     
-                    # Use PIL to get image info and handle format
                     with Image.open(img_file_obj) as img:
                         img_format = img.format.upper()
                         if img_format not in ['JPEG', 'PNG', 'GIF']:
-                            # Convert to PNG if not a supported format
                             with io.BytesIO() as output_bytes:
                                 img.save(output_bytes, format="PNG")
                                 img_bytes = output_bytes.getvalue()
                                 img_format = "PNG"
                         
-                        # Calculate image size to fit page
                         page_width = pdf.w - pdf.l_margin - pdf.r_margin
                         
-                        # Handle potential division by zero for tall, thin images
                         if img.width == 0:
                             continue
                             
@@ -235,10 +247,9 @@ def create_pdf_from_markdown(markdown_text, image_dict):
                         img_width = page_width
                         img_height = page_width * ratio
 
-                        # Embed the image
                         img_file_obj_final = io.BytesIO(img_bytes)
                         pdf.image(img_file_obj_final, x=pdf.get_x(), w=img_width, type=img_format)
-                        pdf.ln(img_height + 2) # Add space after image
+                        pdf.ln(img_height + 2) 
 
                 except Exception as e:
                     pdf.set_font("Arial", 'I', 10)
@@ -272,11 +283,10 @@ def create_pdf_from_markdown(markdown_text, image_dict):
             pdf.set_font("Arial", '', 12)
             pdf.write_html(line.strip())
             
-    # Return PDF as bytes
     return pdf.output(dest='S').encode('latin-1')
 
 # ------------------------------------------------------------------
-# 4. STREAMLIT APPLICATION UI
+# 4. STREAMLIT APPLICATION UI (MODIFIED)
 # ------------------------------------------------------------------
 
 st.set_page_config(page_title="Lecture to Textbook", layout="wide")
@@ -289,6 +299,26 @@ if "GOOGLE_API_KEY" not in st.secrets:
     st.markdown("Please add your API key to a file named `.streamlit/secrets.toml`")
     st.code("GOOGLE_API_KEY = \"YOUR_API_KEY_HERE\"")
     st.stop()
+
+# --- NEW: FETCH MODELS AND CREATE DROPDOWN ---
+available_models = get_available_models()
+
+if not available_models:
+    st.error("Could not load any models. Please check your API key and permissions.")
+    st.stop()
+
+def format_model_name(full_name):
+    """Helper function to make model names prettier in the dropdown."""
+    return full_name.split('/')[-1]
+
+selected_model_name = st.selectbox(
+    "Choose your Gemini Model:",
+    options=available_models,
+    format_func=format_model_name,
+    help="Models like '1.5-flash' are faster, '1.5-pro' is more powerful."
+)
+# --- END OF NEW SECTION ---
+
 
 # File Uploader
 uploaded_file = st.file_uploader("Upload your file", type=["pptx", "pdf"])
@@ -316,10 +346,11 @@ if uploaded_file is not None:
                 st.error(f"Error during file extraction: {e}")
                 st.stop()
 
-        # 2. Call Gemini API
-        with st.spinner("🤖 Calling Gemini to write your textbook chapter... This may take a minute..."):
+        # 2. Call Gemini API (--- MODIFIED ---)
+        with st.spinner(f"🤖 Calling {format_model_name(selected_model_name)} to write your textbook..."):
             try:
-                markdown_output = call_gemini_api(extracted_text)
+                # Pass the selected model name to the API function
+                markdown_output = call_gemini_api(extracted_text, selected_model_name)
                 st.success("Gemini has finished writing!")
                 
                 with st.expander("Show Gemini's Markdown Output"):
