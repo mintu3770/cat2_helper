@@ -163,7 +163,6 @@ def call_gemini_api(content_to_process, model_name):
         st.stop()
 
 
-# --- UPDATED PDF CLASS ---
 class PDF(FPDF):
     """Custom FPDF class to handle multi-cell with bold/italic"""
     def write_html(self, text):
@@ -172,7 +171,7 @@ class PDF(FPDF):
                    .replace("“", '"').replace("”", '"') \
                    .replace("–", "-").replace("—", "-") \
                    .replace("→", "->") \
-                   .replace("∪", "U")  # <-- FIX
+                   .replace("∪", "U")
         
         parts = re.split(r'(\*\*.+?\*\*|_.+?_)', text)
         for part in parts:
@@ -188,7 +187,6 @@ class PDF(FPDF):
         self.ln(self.h)
 
 
-# --- UPDATED PDF CREATION FUNCTION ---
 def create_pdf_from_markdown(markdown_text, image_dict):
     """
     Generates a PDF from the LLM's Markdown output, embedding images.
@@ -212,7 +210,7 @@ def create_pdf_from_markdown(markdown_text, image_dict):
                    .replace("“", '"').replace("”", '"') \
                    .replace("–", "-").replace("—", "-") \
                    .replace("→", "->") \
-                   .replace("∪", "U")  # <-- FIX
+                   .replace("∪", "U")
 
         # H1 Title: #
         if re.match(r'^#\s', line):
@@ -376,7 +374,10 @@ if uploaded_file is not None:
         # 3. Create PDF
         with st.spinner("🎨 Formatting your PDF textbook..."):
             try:
-                pdf_bytes = create_pdf_from_markdown(markdown_text, images)
+                # --- THIS IS THE FIX ---
+                pdf_bytes = create_pdf_from_markdown(markdown_output, images)
+                # --- END OF FIX ---
+                
                 st.success("PDF created successfully!")
 
                 # 4. Download Button
