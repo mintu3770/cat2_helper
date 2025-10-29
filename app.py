@@ -295,7 +295,8 @@ def create_pdf_from_markdown(markdown_text, image_dict):
             pdf.set_font("Arial", '', 12)
             pdf.write_html(line.strip()) # This function now sanitizes internally
             
-    return pdf.output(dest='S')
+    # --- THIS IS THE FINAL FIX ---
+    return bytes(pdf.output(dest='S'))
 
 
 # ------------------------------------------------------------------
@@ -374,9 +375,7 @@ if uploaded_file is not None:
         # 3. Create PDF
         with st.spinner("🎨 Formatting your PDF textbook..."):
             try:
-                # --- THIS IS THE FIX ---
                 pdf_bytes = create_pdf_from_markdown(markdown_output, images)
-                # --- END OF FIX ---
                 
                 st.success("PDF created successfully!")
 
