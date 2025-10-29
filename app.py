@@ -162,9 +162,17 @@ def call_gemini_api(content_to_process, model_name):
         st.error(f"Error calling Gemini API: {e}")
         st.stop()
 
+
+# --- UPDATED PDF CLASS ---
 class PDF(FPDF):
     """Custom FPDF class to handle multi-cell with bold/italic"""
     def write_html(self, text):
+        # --- NEW: Sanitize text for Unicode ---
+        text = text.replace("’", "'").replace("‘", "'") \
+                   .replace("“", '"').replace("”", '"') \
+                   .replace("–", "-").replace("—", "-")
+        # ------------------------------------
+        
         parts = re.split(r'(\*\*.+?\*\*|_.+?_)', text)
         for part in parts:
             if part.startswith('**') and part.endswith('**'):
@@ -179,7 +187,7 @@ class PDF(FPDF):
         self.ln(self.h)
 
 
-# --- THIS IS THE UPDATED FUNCTION ---
+# --- UPDATED PDF CREATION FUNCTION ---
 def create_pdf_from_markdown(markdown_text, image_dict):
     """
     Generates a PDF from the LLM's Markdown output, embedding images.
@@ -197,6 +205,12 @@ def create_pdf_from_markdown(markdown_text, image_dict):
         if line.strip() == "":
             pdf.ln(5)
             continue
+
+        # --- NEW: Sanitize all lines for common Unicode issues ---
+        line = line.replace("’", "'").replace("‘", "'") \
+                   .replace("“", '"').replace("”", '"') \
+                   .replace("–", "-").replace("—", "-")
+        # ---------------------------------------------------------
 
         # H1 Title: #
         if re.match(r'^#\s', line):
@@ -246,14 +260,18 @@ def create_pdf_from_markdown(markdown_text, image_dict):
                         pdf.ln(img_height + 2) 
 
                 except Exception as e:
+                    error_msg = f"[Error embedding image: {img_filename}. {e}]"
+                    error_msg = error_msg.replace("’", "'").replace("‘", "'")
                     pdf.set_font("Arial", 'I', 10)
                     pdf.set_text_color(255, 0, 0) # Red
-                    pdf.multi_cell(0, 5, f"[Error embedding image: {img_filename}. {e}]", ln=1)
+                    pdf.multi_cell(0, 5, error_msg, ln=1)
                     pdf.set_text_color(0, 0, 0) # Back to black
             else:
+                error_msg = f"[Image not found: {img_filename}]"
+                error_msg = error_msg.replace("’", "'").replace("‘", "'")
                 pdf.set_font("Arial", 'I', 10)
                 pdf.set_text_color(255, 0, 0)
-                pdf.multi_cell(0, 5, f"[Image not found: {img_filename}]", ln=1)
+                pdf.multi_cell(0, 5, error_msg, ln=1)
                 pdf.set_text_color(0, 0, 0)
 
         # Figure Caption: *Figure...
@@ -265,9 +283,7 @@ def create_pdf_from_markdown(markdown_text, image_dict):
         # Bullet points
         elif re.match(r'^\s*[\*\-]\s', line):
             pdf.set_font("Arial", '', 12)
-            # --- THIS IS THE FIX ---
             pdf.multi_cell(0, 5, f"  -  {line.lstrip(' *-')}", ln=1) 
-            # --- END OF FIX ---
 
         # Numbered lists
         elif re.match(r'^\s*\d+\.\s', line):
@@ -277,10 +293,9 @@ def create_pdf_from_markdown(markdown_text, image_dict):
         # Paragraph text (with bold/italic)
         else:
             pdf.set_font("Arial", '', 12)
-            pdf.write_html(line.strip()) # This function correctly handles its own line breaks
+            pdf.write_html(line.strip()) # This function now sanitizes internally
             
     return pdf.output(dest='S').encode('latin-1')
-# --- END OF UPDATED FUNCTION ---
 
 
 # ------------------------------------------------------------------
