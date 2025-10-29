@@ -171,7 +171,8 @@ class PDF(FPDF):
         text = text.replace("’", "'").replace("‘", "'") \
                    .replace("“", '"').replace("”", '"') \
                    .replace("–", "-").replace("—", "-") \
-                   .replace("→", "->")  # <-- FIX
+                   .replace("→", "->") \
+                   .replace("∪", "U")  # <-- FIX
         
         parts = re.split(r'(\*\*.+?\*\*|_.+?_)', text)
         for part in parts:
@@ -210,7 +211,8 @@ def create_pdf_from_markdown(markdown_text, image_dict):
         line = line.replace("’", "'").replace("‘", "'") \
                    .replace("“", '"').replace("”", '"') \
                    .replace("–", "-").replace("—", "-") \
-                   .replace("→", "->")  # <-- FIX
+                   .replace("→", "->") \
+                   .replace("∪", "U")  # <-- FIX
 
         # H1 Title: #
         if re.match(r'^#\s', line):
@@ -261,14 +263,14 @@ def create_pdf_from_markdown(markdown_text, image_dict):
 
                 except Exception as e:
                     error_msg = f"[Error embedding image: {img_filename}. {e}]"
-                    error_msg = error_msg.replace("’", "'").replace("‘", "'").replace("→", "->")
+                    error_msg = error_msg.replace("’", "'").replace("‘", "'").replace("→", "->").replace("∪", "U")
                     pdf.set_font("Arial", 'I', 10)
                     pdf.set_text_color(255, 0, 0) # Red
                     pdf.multi_cell(0, 5, error_msg, ln=1)
                     pdf.set_text_color(0, 0, 0) # Back to black
             else:
                 error_msg = f"[Image not found: {img_filename}]"
-                error_msg = error_msg.replace("’", "'").replace("‘", "'").replace("→", "->")
+                error_msg = error_msg.replace("’", "'").replace("‘", "'").replace("→", "->").replace("∪", "U")
                 pdf.set_font("Arial", 'I', 10)
                 pdf.set_text_color(255, 0, 0)
                 pdf.multi_cell(0, 5, error_msg, ln=1)
@@ -374,7 +376,7 @@ if uploaded_file is not None:
         # 3. Create PDF
         with st.spinner("🎨 Formatting your PDF textbook..."):
             try:
-                pdf_bytes = create_pdf_from_markdown(markdown_output, images)
+                pdf_bytes = create_pdf_from_markdown(markdown_text, images)
                 st.success("PDF created successfully!")
 
                 # 4. Download Button
