@@ -163,15 +163,13 @@ def call_gemini_api(content_to_process, model_name):
         st.stop()
 
 
-# --- UPDATED PDF CLASS ---
 class PDF(FPDF):
     """Custom FPDF class to handle multi-cell with bold/italic"""
     def write_html(self, text):
-        # --- NEW: Sanitize text for Unicode ---
+        # Sanitize text for Unicode
         text = text.replace("’", "'").replace("‘", "'") \
                    .replace("“", '"').replace("”", '"') \
                    .replace("–", "-").replace("—", "-")
-        # ------------------------------------
         
         parts = re.split(r'(\*\*.+?\*\*|_.+?_)', text)
         for part in parts:
@@ -187,7 +185,6 @@ class PDF(FPDF):
         self.ln(self.h)
 
 
-# --- UPDATED PDF CREATION FUNCTION ---
 def create_pdf_from_markdown(markdown_text, image_dict):
     """
     Generates a PDF from the LLM's Markdown output, embedding images.
@@ -206,11 +203,10 @@ def create_pdf_from_markdown(markdown_text, image_dict):
             pdf.ln(5)
             continue
 
-        # --- NEW: Sanitize all lines for common Unicode issues ---
+        # Sanitize all lines for common Unicode issues
         line = line.replace("’", "'").replace("‘", "'") \
                    .replace("“", '"').replace("”", '"') \
                    .replace("–", "-").replace("—", "-")
-        # ---------------------------------------------------------
 
         # H1 Title: #
         if re.match(r'^#\s', line):
@@ -295,7 +291,8 @@ def create_pdf_from_markdown(markdown_text, image_dict):
             pdf.set_font("Arial", '', 12)
             pdf.write_html(line.strip()) # This function now sanitizes internally
             
-    return pdf.output(dest='S').encode('latin-1')
+    # --- THIS IS THE FINAL FIX ---
+    return pdf.output(dest='S')
 
 
 # ------------------------------------------------------------------
