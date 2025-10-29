@@ -163,13 +163,15 @@ def call_gemini_api(content_to_process, model_name):
         st.stop()
 
 
+# --- UPDATED PDF CLASS ---
 class PDF(FPDF):
     """Custom FPDF class to handle multi-cell with bold/italic"""
     def write_html(self, text):
         # Sanitize text for Unicode
         text = text.replace("’", "'").replace("‘", "'") \
                    .replace("“", '"').replace("”", '"') \
-                   .replace("–", "-").replace("—", "-")
+                   .replace("–", "-").replace("—", "-") \
+                   .replace("→", "->")  # <-- FIX
         
         parts = re.split(r'(\*\*.+?\*\*|_.+?_)', text)
         for part in parts:
@@ -185,6 +187,7 @@ class PDF(FPDF):
         self.ln(self.h)
 
 
+# --- UPDATED PDF CREATION FUNCTION ---
 def create_pdf_from_markdown(markdown_text, image_dict):
     """
     Generates a PDF from the LLM's Markdown output, embedding images.
@@ -206,7 +209,8 @@ def create_pdf_from_markdown(markdown_text, image_dict):
         # Sanitize all lines for common Unicode issues
         line = line.replace("’", "'").replace("‘", "'") \
                    .replace("“", '"').replace("”", '"') \
-                   .replace("–", "-").replace("—", "-")
+                   .replace("–", "-").replace("—", "-") \
+                   .replace("→", "->")  # <-- FIX
 
         # H1 Title: #
         if re.match(r'^#\s', line):
@@ -257,14 +261,14 @@ def create_pdf_from_markdown(markdown_text, image_dict):
 
                 except Exception as e:
                     error_msg = f"[Error embedding image: {img_filename}. {e}]"
-                    error_msg = error_msg.replace("’", "'").replace("‘", "'")
+                    error_msg = error_msg.replace("’", "'").replace("‘", "'").replace("→", "->")
                     pdf.set_font("Arial", 'I', 10)
                     pdf.set_text_color(255, 0, 0) # Red
                     pdf.multi_cell(0, 5, error_msg, ln=1)
                     pdf.set_text_color(0, 0, 0) # Back to black
             else:
                 error_msg = f"[Image not found: {img_filename}]"
-                error_msg = error_msg.replace("’", "'").replace("‘", "'")
+                error_msg = error_msg.replace("’", "'").replace("‘", "'").replace("→", "->")
                 pdf.set_font("Arial", 'I', 10)
                 pdf.set_text_color(255, 0, 0)
                 pdf.multi_cell(0, 5, error_msg, ln=1)
@@ -291,7 +295,6 @@ def create_pdf_from_markdown(markdown_text, image_dict):
             pdf.set_font("Arial", '', 12)
             pdf.write_html(line.strip()) # This function now sanitizes internally
             
-    # --- THIS IS THE FINAL FIX ---
     return pdf.output(dest='S')
 
 
