@@ -201,19 +201,19 @@ def create_pdf_from_markdown(markdown_text, image_dict):
         # H1 Title: #
         if re.match(r'^#\s', line):
             pdf.set_font("Arial", 'B', 24)
-            pdf.multi_cell(0, 12, line[2:].strip(), ln=1)  # <-- FIX
+            pdf.multi_cell(0, 12, line[2:].strip(), ln=1)
             pdf.ln(5)
         
         # H2 Title: ##
         elif re.match(r'^##\s', line):
             pdf.set_font("Arial", 'B', 18)
-            pdf.multi_cell(0, 10, line[3:].strip(), ln=1)  # <-- FIX
+            pdf.multi_cell(0, 10, line[3:].strip(), ln=1)
             pdf.ln(4)
 
         # H3 Title: ###
         elif re.match(r'^###\s', line):
             pdf.set_font("Arial", 'B', 14)
-            pdf.multi_cell(0, 8, line[4:].strip(), ln=1)  # <-- FIX
+            pdf.multi_cell(0, 8, line[4:].strip(), ln=1)
             pdf.ln(3)
 
         # Image Placeholder: [IMAGE: ...]
@@ -248,29 +248,31 @@ def create_pdf_from_markdown(markdown_text, image_dict):
                 except Exception as e:
                     pdf.set_font("Arial", 'I', 10)
                     pdf.set_text_color(255, 0, 0) # Red
-                    pdf.multi_cell(0, 5, f"[Error embedding image: {img_filename}. {e}]", ln=1)  # <-- FIX
+                    pdf.multi_cell(0, 5, f"[Error embedding image: {img_filename}. {e}]", ln=1)
                     pdf.set_text_color(0, 0, 0) # Back to black
             else:
                 pdf.set_font("Arial", 'I', 10)
                 pdf.set_text_color(255, 0, 0)
-                pdf.multi_cell(0, 5, f"[Image not found: {img_filename}]", ln=1)  # <-- FIX
+                pdf.multi_cell(0, 5, f"[Image not found: {img_filename}]", ln=1)
                 pdf.set_text_color(0, 0, 0)
 
         # Figure Caption: *Figure...
         elif re.match(r'^\*Figure.*', line):
             pdf.set_font("Arial", 'I', 10)
-            pdf.multi_cell(0, 5, line.strip(), ln=1)  # <-- FIX
+            pdf.multi_cell(0, 5, line.strip(), ln=1)
             pdf.ln(5)
 
         # Bullet points
         elif re.match(r'^\s*[\*\-]\s', line):
             pdf.set_font("Arial", '', 12)
-            pdf.multi_cell(0, 5, f"  •  {line.lstrip(' *-')}", ln=1)  # <-- FIX
+            # --- THIS IS THE FIX ---
+            pdf.multi_cell(0, 5, f"  -  {line.lstrip(' *-')}", ln=1) 
+            # --- END OF FIX ---
 
         # Numbered lists
         elif re.match(r'^\s*\d+\.\s', line):
             pdf.set_font("Arial", '', 12)
-            pdf.multi_cell(0, 5, f"  {line.lstrip()}", ln=1)  # <-- FIX
+            pdf.multi_cell(0, 5, f"  {line.lstrip()}", ln=1)
 
         # Paragraph text (with bold/italic)
         else:
